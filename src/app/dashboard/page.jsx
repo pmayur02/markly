@@ -17,19 +17,23 @@ export default function Dashboard() {
     checkUser()
     fetchBookmarks()
 
-    const channel = supabase
-      .channel('realtime-bookmarks')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'bookmarks' },
-        () => {
-          fetchBookmarks()
+  const channel = supabase
+    .channel('realtime-bookmarks')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'bookmarks' },
+      (payload) => {
+        // update state directly from the payload
+        if (payload.eventType === 'INSERT') {
+          setBookmarks(prev => [payload.new, ...prev])
+        } else if (payload.eventType === 'DELETE') {
+          setBookmarks(prev =>
+            prev.filter(b => b.id !== payload.old.id)
+          )
         }
-      )
-      .subscribe()
-
-    console.log("SUPABASE URL:", process.env.NEXT_PUBLIC_SUPABASE_URL)
-  console.log("SUPABASE KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+      }
+    )
+    .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
